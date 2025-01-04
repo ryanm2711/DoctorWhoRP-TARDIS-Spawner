@@ -112,7 +112,7 @@ function PANEL:Init()
             if v.Base == true or v.Hidden or v.IsVersionOf then continue end
             --if LocalPlayer():Team() ~= TEAM_RANI and v.ID == "rani" then continue end
             local hasAccess = TARDIS_SPAWNER_IsTardisAvailable(v.ID, LocalPlayer())
-            if not hasAccess then continue end
+            if not hasAccess and TARDIS_SPAWNER_CONFIG.HideLockedTARDISInteriors then continue end
             self:AddInterior(v)
         end
     end

@@ -38,3 +38,6 @@ TARDIS_SPAWNER_CONFIG.LevelLockedMessage = "You must be level %s to spawn this T
 TARDIS_SPAWNER_CONFIG.RestrictedJobMessage = "You are not the correct job to spawn this TARDIS."
 
 TARDIS_SPAWNER_CONFIG.TARDISAddonNotInstalledMessage = "This weapon requires the TARDIS addon installed to function properly!"
+
+-- If true, locked TARDIS interiors will not be displayed in the TARDIS spawner menu
+TARDIS_SPAWNER_CONFIG.HideLockedTARDISInteriors = true 
