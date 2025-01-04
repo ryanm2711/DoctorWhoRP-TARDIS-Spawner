@@ -55,6 +55,37 @@ function SWEP:SetupDataTables()
     self:NetworkVar("String", 0, "Interior")
 end
 
+function TARDIS_SPAWNER_IsTardisAvailable(tardis, ply)
+    local lockedConfig = TARDIS_SPAWNER_CONFIG.LockedTardises[type(tardis) == "string" and tardis or tardis.metadata.ID]
+
+    if lockedConfig then
+        if lockedConfig.whitelistedTeams then
+            if not lockedConfig.whitelistedTeams[ply:Team()] then
+                return false, TARDIS_SPAWNER_CONFIG.RestrictedJobMessage
+            end
+        end
+
+        if lockedConfig.level then
+            local plyLevel = 0
+            -- Vrondakis level system
+            if LevelSystemConfiguration and DarkRP then
+                plyLevel = ply:getDarkRPVar("level")
+            end
+
+            if plyLevel < lockedConfig.level then
+                return false, string.format(TARDIS_SPAWNER_CONFIG.LevelLockedMessage, lockedConfig.level)
+            end
+        end
+
+        if lockedConfig.customCheck then
+            local result, msg = lockedConfig.customCheck(tardis, ply)
+            return result, msg
+        end
+    end
+
+    return true
+end
+
 function SWEP:SpawnTARDIS(pos)
     --[[local ent = ents.Create("gmod_tardis")
     ent:SetPos(pos)
@@ -65,9 +96,11 @@ function SWEP:SpawnTARDIS(pos)
 
     --local TARDISID = GetConVar("tardis2_selected_interior")
     local TARDIS_ID = self:GetInterior() or "default"
-    
-    if TARDIS_ID == "rani" and self:GetOwner():Team() ~= TEAM_RANI then
-        return nil
+
+    local hasAccess, reason = TARDIS_SPAWNER_IsTardisAvailable(TARDIS_ID, self:GetOwner())
+    if not hasAccess then
+        self:GetOwner():PrintMessage(HUD_PRINTTALK, reason or TARDIS_SPAWNER_CONFIG.GenericLockedTardisMessage)
+        return
     end
 
     --if TARDISID == nil then TARDISID = "default" end
@@ -105,8 +138,18 @@ function SWEP:GetValidPosition()
     return tr.HitPos, (IsOnGround(tr.HitPos) and tr.HitPos:Distance(ply:GetPos()) >= self.SpawnDistance.min)
 end
 
+function SWEP:Deploy()
+    if IsFirstTimePredicted() and CLIENT and TARDIS then
+        self:GetOwner():PrintMessage(HUD_PRINTTALK, TARDIS_SPAWNER_CONFIG.TARDISAddonNotInstalledMessage)
+    end
+end
+
 function SWEP:PrimaryAttack()
-    if IsFirstTimePredicted() and SERVER and TARDIS then
+    if IsFirstTimePredicted() and SERVER then
+        if not TARDIS then
+            self:GetOwner():PrintMessage(HUD_PRINTTALK, TARDIS_SPAWNER_CONFIG.TARDISAddonNotInstalledMessage)
+            return
+        end
         
         local pos, validPos = self:GetValidPosition()
 
@@ -120,7 +163,12 @@ function SWEP:PrimaryAttack()
 end
 
 function SWEP:SecondaryAttack()
-    if IsFirstTimePredicted() and CLIENT and TARDIS then
+    if IsFirstTimePredicted() and CLIENT then
+        if not TARDIS then
+            LocalPlayer():PrintMessage(HUD_PRINTTALK, TARDIS_SPAWNER_CONFIG.TARDISAddonNotInstalledMessage)
+            return
+        end
+        
         local pnl = vgui.Create("DoctorWhoRP.VGUI.TardisSpawnerIntSelect")
         pnl:SetSize(ScrW() * 0.4, ScrH() * 0.5)
         pnl:Center()
@@ -146,32 +194,31 @@ if SERVER then
         if not shouldNotBlock then return false end
     end)
 
-    --[[hook.Add("PlayerSpawnedSENT", "DoctorWhoRP.Weapons.AddRedecorateToList", function(ply, ent)
+    hook.Add("PlayerSpawnedSENT", "DoctorWhoRP.Weapons.AddRedecorateToList", function(ply, ent)
         if ent:GetClass() == "gmod_tardis" then
             ent.SpawnedBySpawner = true
 
-            if ent.metadata.ID == "rani" then
-                if ply:Team() ~= TEAM_RANI and not ply:IsAdmin() then
-                    ply:PrintMessage(HUD_PRINTTALK, "[TARDIS] Not the right job for this TARDIS.")
-                    timer.Simple(1, function()
-                        ent:Remove()
-                    end)
-
-                    return
-                end
+            local hasAccess, reason = TARDIS_SPAWNER_IsTardisAvailable(ent, ply)
+            if not hasAccess then
+                ply:PrintMessage(HUD_PRINTTALK, reason or TARDIS_SPAWNER_CONFIG.GenericLockedTardisMessage)
+                timer.Simple(1, function()
+                    ent:Remove()
+                end)
+                return
             end
 
-            ent:RemoveHook("CanToggleRedecoration", "DoctorWhoRP.Weapons.PreventRaniTARDISRedecorate")
-            ent:AddHook("CanToggleRedecoration", "DoctorWhoRP.Weapons.PreventRaniTARDISRedecorate", function(self, on)
+            ent:RemoveHook("CanToggleRedecoration", "DoctorWhoRP.Weapons.PreventLockedTARDISRedecorate")
+            ent:AddHook("CanToggleRedecoration", "DoctorWhoRP.Weapons.PreventLockedTARDISRedecorate", function(self, on)
                 local ply = self:GetCreator()
                 local chosen_int = TARDIS:GetSetting("redecorate-interior", ply)
-                if chosen_int == "rani" and (ply:Team() ~= TEAM_RANI or not ply:IsAdmin() or not ply:IsSuperAdmin()) then
-                    ply:PrintMessage(HUD_PRINTTALK, "[TARDIS] Not the right job to redecorate into this TARDIS.")
+                local hasAccess, reason = TARDIS_SPAWNER_IsTardisAvailable(chosen_int, ply)
+                if not hasAccess then
+                    ply:PrintMessage(HUD_PRINTTALK, reason or TARDIS_SPAWNER_CONFIG.GenericLockedTardisMessage)
                     return false
                 end
             end)
         end
-    end)--]]
+    end)
 
     local function CleanupTardisSpawn(ply)
         local existing, ent = IsTardisSpawnedAlready(ply)

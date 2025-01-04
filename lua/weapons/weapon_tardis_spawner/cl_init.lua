@@ -111,6 +111,8 @@ function PANEL:Init()
         for k, v in pairs(TARDIS.MetadataRaw) do
             if v.Base == true or v.Hidden or v.IsVersionOf then continue end
             --if LocalPlayer():Team() ~= TEAM_RANI and v.ID == "rani" then continue end
+            local hasAccess = TARDIS_SPAWNER_IsTardisAvailable(v.ID, LocalPlayer())
+            if not hasAccess then continue end
             self:AddInterior(v)
         end
     end
@@ -224,7 +226,7 @@ function PANEL:AddInterior(T)
         end
     end
 
-    self.interiors[#self.interiors + 1] = pnl 
+    self.interiors[#self.interiors + 1] = pnl
 end
 
 function PANEL:SetSelectedInterior(ID)
