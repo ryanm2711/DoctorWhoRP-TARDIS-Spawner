@@ -179,6 +179,13 @@ function SWEP:SecondaryAttack()
 end
 
 if SERVER then
+    hook.Add("PlayerSpawnSENT", "DoctorWhoRP.Weapons.TARDISSpawnerBypassDarkRPRestriction", function(ply, class)
+        local swep = ply:GetActiveWeapon()
+        if IsValid(swep) and swep:GetClass() == "weapon_tardis_spawner" and class == "gmod_tardis" then
+            return true
+        end
+    end)
+
     hook.Add("CanUndo", "DoctorWhoRP.Weapons.TARDISSpawnerBlockUndo", function(ply, undo)
         local shouldNotBlock = true
         if undo.Entities ~= nil then
